@@ -1,0 +1,2747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+
+
+
+
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14243e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>단어연습</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Caveat:wght@600;700&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --wood-1:#ffead5;
+    --wood-2:#ffdab4;
+    --wood-3:#efbf8e;
+    --board:#14243e;
+    --board-2:#0e1b30;
+    --board-edge:#071020;
+    --chalk:#f1f5ff;
+    --chalk-dim:#bdcbe2;
+    --o-color:#8fe0c4;
+    --x-color:#f0938a;
+    --tape:#e9dfae;
+    --gold:#e6cf8a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,0.05), transparent 40%),
+      linear-gradient(160deg, var(--wood-1), var(--wood-2) 55%, var(--wood-3));
+    font-family:'Noto Sans KR', sans-serif;
+    color:var(--chalk);
+    padding:20px;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+
+  .frame{
+    width:min(1100px, 100%);
+    background:linear-gradient(180deg, var(--wood-1), var(--wood-2));
+    border-radius:22px;
+    padding:18px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.06);
+    position:relative;
+  }
+  .frame::before{
+    content:"";
+    position:absolute; inset:8px;
+    border-radius:16px;
+    border:2px solid rgba(0,0,0,0.25);
+    pointer-events:none;
+  }
+
+  header.title{
+    color:#182b49;
+    text-align:center;
+    padding:6px 0 14px;
+  }
+  header.title h1{
+    font-family:'Gaegu', sans-serif;
+    font-weight:700;
+    font-size:clamp(1.6rem, 3vw, 2.3rem);
+    margin:0;
+    color:#652d46;
+    letter-spacing:1px;
+    text-shadow:none;
+  }
+  header.title p{
+    margin:4px 0 0;
+    font-size:0.85rem;
+    color:#4f5968;
+    font-family:'Gaegu', sans-serif;
+  }
+
+  .board{
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.04), transparent 55%),
+      radial-gradient(ellipse at 80% 85%, rgba(255,255,255,0.03), transparent 50%),
+      linear-gradient(160deg, var(--board), var(--board-2));
+    border-radius:14px;
+    box-shadow: inset 0 0 0 6px var(--board-edge), inset 0 0 40px rgba(0,0,0,0.35);
+    padding:18px;
+    display:grid;
+    grid-template-columns: 230px 1fr;
+    gap:18px;
+    min-height:560px;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background:rgba(0,0,0,0.15);
+    border-radius:10px;
+    padding:14px 12px;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .sidebar h2{
+    font-family:'Gaegu', sans-serif;
+    font-size:1.15rem;
+    margin:0 0 4px;
+    color:var(--chalk);
+    border-bottom:2px dashed rgba(243,239,225,0.25);
+    padding-bottom:8px;
+  }
+  .progress-count{
+    font-family:'JetBrains Mono', monospace;
+    font-size:0.95rem;
+    color:var(--gold);
+    margin:8px 0 10px;
+    letter-spacing:0.5px;
+  }
+  .word-list{
+    list-style:none;
+    margin:0; padding:0;
+    overflow-y:auto;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .word-list li{
+    position:relative;
+    background:rgba(243,239,225,0.06);
+    border-radius:6px;
+    padding:8px 10px 8px 30px;
+    font-size:0.82rem;
+    line-height:1.35;
+    animation: dropIn 0.3s ease;
+  }
+  .word-list li .tape{
+    position:absolute; top:-6px; left:14px;
+    width:26px; height:12px;
+    background:var(--tape);
+    opacity:0.55;
+    transform:rotate(-4deg);
+    border-radius:2px;
+  }
+  .word-list li .mark{
+    position:absolute; left:8px; top:50%;
+    transform:translateY(-50%);
+    width:16px; height:16px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:0.65rem;
+  }
+  .word-list li.correct .mark{ color:var(--o-color); border:2px solid var(--o-color); }
+  .word-list li.wrong .mark{ color:var(--x-color); border:2px solid var(--x-color); }
+  .word-list li .en{ color:var(--chalk); font-weight:700; font-family:'Gaegu', sans-serif; font-size:0.95rem;}
+  .word-list li .ko{ color:var(--chalk-dim); display:block; margin-top:1px;}
+  @keyframes dropIn{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+
+  .word-list::-webkit-scrollbar{ width:6px; }
+  .word-list::-webkit-scrollbar-thumb{ background:rgba(243,239,225,0.25); border-radius:4px; }
+
+  /* ---------- Main test area ---------- */
+  .main-area{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 8px;
+  }
+
+  .word-stage{
+    flex:1;
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    min-height:260px;
+  }
+
+  .word-display{
+    font-family:'Caveat', cursive;
+    font-weight:700;
+    font-size:clamp(3rem, 8vw, 5.2rem);
+    color:var(--chalk);
+    text-align:center;
+    letter-spacing:1px;
+    text-shadow: 0 0 12px rgba(243,239,225,0.15);
+    transition: opacity 0.15s ease;
+    padding:0 20px;
+    word-break:break-word;
+  }
+  .word-display.fade{ opacity:0; }
+
+  .stamp-svg{
+    opacity:0;
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:min(340px, 80%);
+    height:min(340px, 80%);
+    pointer-events:none;
+  }
+  .stamp-svg path{
+    fill:none;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .stamp-svg.o path{ stroke:var(--o-color); stroke-width:14; filter:drop-shadow(0 0 6px rgba(143,224,196,0.5)); }
+  .stamp-svg.x path{ stroke:var(--x-color); stroke-width:14; filter:drop-shadow(0 0 6px rgba(240,147,138,0.5)); }
+
+  .controls{
+    display:flex;
+    gap:22px;
+    width:100%;
+    max-width:520px;
+    margin-top:10px;
+  }
+  .btn{
+    flex:1;
+    border:none;
+    border-radius:16px;
+    padding:26px 0;
+    font-family:'Gaegu', sans-serif;
+    font-weight:700;
+    font-size:2.6rem;
+    cursor:pointer;
+    touch-action:manipulation;
+    transition: transform 0.08s ease, filter 0.15s ease;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 10px 18px rgba(0,0,0,0.3);
+  }
+  .btn:active{ transform:translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 4px 10px rgba(0,0,0,0.25); }
+  .btn:disabled{ filter:grayscale(0.5) brightness(0.7); cursor:default; }
+  .btn-o{ background:linear-gradient(180deg, #a7ecd4, #6fcfae); color:#123626; }
+  .btn-x{ background:linear-gradient(180deg, #f6b0a8, #e2776a); color:#4a1712; }
+
+  /* ---------- Result Screen ---------- */
+  .result-screen{
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.04), transparent 55%),
+      linear-gradient(160deg, var(--board), var(--board-2));
+    border-radius:14px;
+    box-shadow: inset 0 0 0 6px var(--board-edge), inset 0 0 40px rgba(0,0,0,0.35);
+    padding:26px 22px;
+    min-height:560px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .hidden{ display:none !important; }
+
+  .result-screen h2{
+    font-family:'Gaegu', sans-serif;
+    font-size:1.8rem;
+    color:var(--gold);
+    margin:0 0 4px;
+  }
+  .score-panel{
+    display:flex;
+    gap:36px;
+    margin:14px 0 22px;
+  }
+  .score-box{
+    text-align:center;
+    background:rgba(0,0,0,0.18);
+    border-radius:12px;
+    padding:14px 26px;
+    min-width:120px;
+  }
+  .score-box .label{
+    font-size:0.8rem;
+    color:var(--chalk-dim);
+    font-family:'Noto Sans KR';
+  }
+  .score-box .value{
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:2rem;
+    color:var(--chalk);
+    margin-top:4px;
+  }
+  .score-box.score .value{ color:var(--gold); }
+
+  .result-grid{
+    width:100%;
+    max-width:720px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px,1fr));
+    gap:10px;
+    overflow-y:auto;
+    padding-right:4px;
+    flex:1;
+  }
+  .result-card{
+    background:rgba(243,239,225,0.07);
+    border-radius:10px;
+    padding:10px 12px;
+    border-left:5px solid transparent;
+  }
+  .result-card.correct{ border-left-color:var(--o-color); }
+  .result-card.wrong{ border-left-color:var(--x-color); }
+  .result-card .en{ font-family:'Gaegu', sans-serif; font-size:1.1rem; font-weight:700; color:var(--chalk); }
+  .result-card .ko{ font-size:0.75rem; color:var(--chalk-dim); display:block; margin-top:2px; line-height:1.3; }
+  .result-card .mark{ float:right; font-family:'JetBrains Mono'; font-weight:700; }
+  .result-card.correct .mark{ color:var(--o-color); }
+  .result-card.wrong .mark{ color:var(--x-color); }
+
+  .retry-btn{
+    margin-top:20px;
+    background:linear-gradient(180deg, var(--gold), #c9a94f);
+    border:none;
+    color:#3a2a08;
+    font-family:'Gaegu', sans-serif;
+    font-weight:700;
+    font-size:1.4rem;
+    padding:14px 46px;
+    border-radius:14px;
+    cursor:pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+    touch-action:manipulation;
+  }
+  .retry-btn:active{ transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,0.3); }
+
+  @media (max-width:720px){
+    .board{ grid-template-columns:1fr; min-height:auto; }
+    .sidebar{ order:2; max-height:180px; }
+    .main-area{ order:1; }
+    .controls{ gap:14px; }
+    .btn{ font-size:2rem; padding:20px 0; }
+  }
+
+  #meaning{min-height:64px;text-align:center;font-size:clamp(1.1rem,2.2vw,1.7rem);padding:12px;color:#f1f5ff;}
+  #feedback{min-height:54px;text-align:center;font-size:2rem;font-weight:900;}
+  #revealBtn{display:block;margin:8px auto 18px;padding:12px 30px;font-size:1.1rem;}
+  .controls .btn{font-family:'Noto Sans KR',sans-serif;font-size:clamp(1rem,2vw,1.5rem);}
+  .retry-btn:disabled{opacity:.45;cursor:default;}
+  #reviewNote{color:#bdcbe2;}
+
+  #feedback{min-height:110px;display:flex;align-items:center;justify-content:center;}
+  #feedback.strong-feedback{font-size:clamp(2.6rem,7vw,5rem);font-weight:900;color:#ff3978;text-shadow:0 0 14px rgba(255,57,120,.45);line-height:1.2;}
+  #pronunciation{text-align:center;color:#c4d5f1;font-size:clamp(1rem,2.4vw,1.4rem);margin:0 0 12px;}
+
+  /* ---------- 추가 / 삭제 ---------- */
+  .toolbar{display:flex;gap:12px;justify-content:center;padding:6px 0 14px;}
+  .tool-btn{
+    border:none;border-radius:12px;padding:10px 34px;
+    font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:1.05rem;
+    background:linear-gradient(180deg,var(--gold),#c9a94f);color:#3a2a08;
+    cursor:pointer;touch-action:manipulation;box-shadow:0 4px 0 rgba(0,0,0,0.3);
+  }
+  .tool-btn.del{background:linear-gradient(180deg,#f6b0a8,#e2776a);color:#4a1712;}
+  .tool-btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,0.3);}
+
+  input[type=text]{user-select:text;-webkit-user-select:text;}
+  .modal{position:fixed;inset:0;background:rgba(5,10,20,0.7);display:flex;align-items:center;justify-content:center;padding:16px;z-index:100;}
+  .modal-box{
+    width:min(480px,100%);max-height:88vh;display:flex;flex-direction:column;gap:10px;
+    background:linear-gradient(160deg,var(--board),var(--board-2));
+    border-radius:14px;padding:18px;box-shadow:inset 0 0 0 4px var(--board-edge),0 20px 50px rgba(0,0,0,0.5);
+    color:var(--chalk);
+  }
+  .modal-box h3{margin:0;font-family:'Gaegu',sans-serif;font-size:1.5rem;color:var(--gold);}
+  .modal-box .row{display:flex;gap:8px;}
+  .modal-box .row.end{justify-content:flex-end;}
+  .modal-box input[type=text]{
+    flex:1;min-width:0;padding:11px 12px;border-radius:10px;border:2px solid rgba(243,239,225,0.2);
+    background:rgba(0,0,0,0.25);color:var(--chalk);font-size:16px;font-family:'Noto Sans KR',sans-serif;outline:none;
+  }
+  .modal-box input[type=text]:focus{border-color:var(--gold);}
+  .m-btn{
+    border:none;border-radius:10px;padding:10px 16px;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:0.95rem;
+    background:linear-gradient(180deg,var(--gold),#c9a94f);color:#3a2a08;cursor:pointer;touch-action:manipulation;white-space:nowrap;
+  }
+  .m-btn.ghost{background:rgba(243,239,225,0.12);color:var(--chalk);}
+  .m-btn.danger{background:linear-gradient(180deg,#f6b0a8,#e2776a);color:#4a1712;}
+  .m-btn:disabled{opacity:.4;cursor:default;}
+  .m-status{min-height:1.3em;font-size:0.85rem;color:var(--chalk-dim);line-height:1.4;}
+  .del-list{overflow-y:auto;flex:1;min-height:200px;max-height:55vh;display:flex;flex-direction:column;gap:6px;padding-right:4px;-webkit-overflow-scrolling:touch;}
+  .del-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:rgba(243,239,225,0.06);cursor:pointer;font-size:0.9rem;}
+  .del-row.sel{background:rgba(240,147,138,0.22);outline:2px solid var(--x-color);}
+  .del-row input{width:18px;height:18px;flex:none;accent-color:#e2776a;}
+  .del-row .en{font-family:'Gaegu',sans-serif;font-weight:700;font-size:1.05rem;flex:none;min-width:90px;}
+  .del-row .ko{color:var(--chalk-dim);font-size:0.8rem;line-height:1.3;}
+  .del-list::-webkit-scrollbar{width:6px;}
+  .del-list::-webkit-scrollbar-thumb{background:rgba(243,239,225,0.25);border-radius:4px;}
+
+  /* ---------- 레이아웃 조정 ---------- */
+  .sidebar{position:relative;padding:0;display:block;overflow:hidden;}
+  .sidebar-inner{position:absolute;inset:0;padding:14px 12px;display:flex;flex-direction:column;min-height:0;}
+  .word-list{min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+  .word-stage{padding-bottom:70px;}
+  .toolbar{padding:0 0 10px;}
+  @media (max-width:720px){ .sidebar{height:180px;} }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="board" id="testScreen">
+    <aside class="sidebar">
+      <div class="sidebar-inner">
+        <h2>진행 기록</h2>
+        <div class="progress-count" id="progressCount">0 / 20</div>
+        <ul class="word-list" id="wordList"></ul>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <div class="word-stage">
+        <div class="word-display" id="wordDisplay"></div>
+
+      </div>
+      
+      <div id="meaning" aria-live="polite"></div>
+      <div id="feedback" aria-live="polite"></div>
+      <div class="toolbar">
+        <button class="tool-btn" id="openAdd" type="button">추가</button>
+        <button class="tool-btn del" id="openDel" type="button">삭제</button>
+      </div>
+      <button class="retry-btn" id="revealBtn">뜻 확인</button>
+      <div class="controls">
+        <button class="btn btn-o" id="btnO">기억나요</button>
+        <button class="btn btn-x" id="btnX">다시 외울래요</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-screen hidden" id="resultScreen">
+    <h2>이번 연습 정리</h2>
+    <div class="score-panel">
+      <div class="score-box">
+        <div class="label">기억한 단어</div>
+        <div class="value" id="correctCount">0 / 20</div>
+      </div>
+      <div class="score-box score">
+        <div class="label">복습할 단어</div>
+        <div class="value" id="finalScore">0개</div>
+      </div>
+    </div>
+    <p id="reviewNote"></p><div class="result-grid" id="resultGrid"></div>
+    <button class="retry-btn" id="reviewBtn">복습할 단어만 다시 연습</button>
+    <button class="retry-btn" id="retryBtn">새 단어 20개 연습</button>
+  </div>
+</div>
+
+<div class="modal hidden" id="addModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>단어 추가</h3>
+    <div class="row">
+      <input id="addWord" type="text" placeholder="영어 단어 (예: apple)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="m-btn" id="addSearch" type="button">찾기</button>
+    </div>
+    <input id="addMeaning" type="text" placeholder="뜻 (찾기 결과가 여기에 들어가요)" autocomplete="off">
+    <div class="m-status" id="addStatus"></div>
+    <div class="row end">
+      <button class="m-btn ghost" type="button" data-close="addModal">닫기</button>
+      <button class="m-btn" id="addConfirm" type="button">퀴즈에 추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="delModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>단어 삭제</h3>
+    <input id="delFilter" type="text" placeholder="단어 검색" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="m-status" id="delCount">0개 선택</div>
+    <div class="del-list" id="delList"></div>
+    <div class="row end">
+      <button class="m-btn ghost" type="button" data-close="delModal">닫기</button>
+      <button class="m-btn danger" id="delConfirm" type="button" disabled>선택한 단어 삭제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_WORDS = [
+  {
+    "en": "prepare",
+    "ko": "준비하다"
+  },
+  {
+    "en": "federal",
+    "ko": "연방의"
+  },
+  {
+    "en": "infinite",
+    "ko": "무한한"
+  },
+  {
+    "en": "peasant",
+    "ko": "농민"
+  },
+  {
+    "en": "transaction",
+    "ko": "거래"
+  },
+  {
+    "en": "suffer",
+    "ko": "고통받다, 겪다"
+  },
+  {
+    "en": "roam",
+    "ko": "돌아다니다"
+  },
+  {
+    "en": "diminish",
+    "ko": "줄어들다, 감소시키다"
+  },
+  {
+    "en": "sufficient",
+    "ko": "충분한"
+  },
+  {
+    "en": "casual",
+    "ko": "격식을 차리지 않는, 우연한"
+  },
+  {
+    "en": "decent",
+    "ko": "괜찮은, 품위 있는"
+  },
+  {
+    "en": "jealous",
+    "ko": "질투하는"
+  },
+  {
+    "en": "stable",
+    "ko": "안정된; 마구간"
+  },
+  {
+    "en": "tablet",
+    "ko": "정제, 알약, 태블릿"
+  },
+  {
+    "en": "behalf",
+    "ko": "이익, 편"
+  },
+  {
+    "en": "exclude",
+    "ko": "제외하다"
+  },
+  {
+    "en": "concern",
+    "ko": "걱정, 관심; 관련되다"
+  },
+  {
+    "en": "trade",
+    "ko": "무역, 거래; 거래하다"
+  },
+  {
+    "en": "distortion",
+    "ko": "왜곡"
+  },
+  {
+    "en": "flexible",
+    "ko": "유연한"
+  },
+  {
+    "en": "sympathy",
+    "ko": "동정, 공감"
+  },
+  {
+    "en": "liquid",
+    "ko": "액체; 액체의"
+  },
+  {
+    "en": "bud",
+    "ko": "싹, 봉오리"
+  },
+  {
+    "en": "tenant",
+    "ko": "세입자"
+  },
+  {
+    "en": "principal",
+    "ko": "주요한; 교장"
+  },
+  {
+    "en": "characteristic",
+    "ko": "특징; 특유의"
+  },
+  {
+    "en": "symbolic",
+    "ko": "상징적인"
+  },
+  {
+    "en": "worthwhile",
+    "ko": "가치 있는"
+  },
+  {
+    "en": "by-product",
+    "ko": "부산물"
+  },
+  {
+    "en": "anticipate",
+    "ko": "예상하다, 기대하다"
+  },
+  {
+    "en": "municipal",
+    "ko": "시의, 지방 자치의"
+  },
+  {
+    "en": "pavement",
+    "ko": "포장도로, 보도"
+  },
+  {
+    "en": "anxiety",
+    "ko": "불안"
+  },
+  {
+    "en": "outlook",
+    "ko": "전망, 견해"
+  },
+  {
+    "en": "phenomenon",
+    "ko": "현상"
+  },
+  {
+    "en": "nominate",
+    "ko": "지명하다, 추천하다"
+  },
+  {
+    "en": "edible",
+    "ko": "먹을 수 있는"
+  },
+  {
+    "en": "desert",
+    "ko": "사막; 버리다"
+  },
+  {
+    "en": "devote",
+    "ko": "바치다, 전념하다"
+  },
+  {
+    "en": "sacred",
+    "ko": "신성한"
+  },
+  {
+    "en": "support",
+    "ko": "지지하다, 부양하다; 지지"
+  },
+  {
+    "en": "dynamic",
+    "ko": "역동적인"
+  },
+  {
+    "en": "collapse",
+    "ko": "붕괴하다; 붕괴"
+  },
+  {
+    "en": "fate",
+    "ko": "운명"
+  },
+  {
+    "en": "revise",
+    "ko": "수정하다, 개정하다"
+  },
+  {
+    "en": "nerve",
+    "ko": "신경, 용기"
+  },
+  {
+    "en": "trigger",
+    "ko": "유발하다; 방아쇠"
+  },
+  {
+    "en": "pursue",
+    "ko": "추구하다, 뒤쫓다"
+  },
+  {
+    "en": "suggest",
+    "ko": "제안하다, 시사하다"
+  },
+  {
+    "en": "prompt",
+    "ko": "즉각적인; 촉발하다"
+  },
+  {
+    "en": "martial",
+    "ko": "전쟁의, 군사의"
+  },
+  {
+    "en": "Atlantic",
+    "ko": "대서양; 대서양의"
+  },
+  {
+    "en": "control",
+    "ko": "통제하다; 통제"
+  },
+  {
+    "en": "suspend",
+    "ko": "중단하다, 매달다"
+  },
+  {
+    "en": "monologue",
+    "ko": "독백"
+  },
+  {
+    "en": "weird",
+    "ko": "기이한"
+  },
+  {
+    "en": "mammal",
+    "ko": "포유류"
+  },
+  {
+    "en": "industry",
+    "ko": "산업, 근면"
+  },
+  {
+    "en": "deliberate",
+    "ko": "고의적인, 신중한; 숙고하다"
+  },
+  {
+    "en": "booth",
+    "ko": "작은 칸, 부스"
+  },
+  {
+    "en": "internal",
+    "ko": "내부의"
+  },
+  {
+    "en": "iceberg",
+    "ko": "빙산"
+  },
+  {
+    "en": "plot",
+    "ko": "줄거리, 음모; 음모를 꾸미다"
+  },
+  {
+    "en": "prescribe",
+    "ko": "처방하다, 규정하다"
+  },
+  {
+    "en": "resent",
+    "ko": "분개하다"
+  },
+  {
+    "en": "monetary",
+    "ko": "화폐의, 통화의"
+  },
+  {
+    "en": "rod",
+    "ko": "막대, 회초리"
+  },
+  {
+    "en": "erupt",
+    "ko": "분출하다, 폭발하다"
+  },
+  {
+    "en": "abrupt",
+    "ko": "갑작스러운"
+  },
+  {
+    "en": "judge",
+    "ko": "판단하다; 판사"
+  },
+  {
+    "en": "partial",
+    "ko": "부분적인, 편파적인"
+  },
+  {
+    "en": "insult",
+    "ko": "모욕하다; 모욕"
+  },
+  {
+    "en": "diverse",
+    "ko": "다양한"
+  },
+  {
+    "en": "gloom",
+    "ko": "어둠, 우울"
+  },
+  {
+    "en": "mutual",
+    "ko": "상호의, 서로의"
+  },
+  {
+    "en": "gaze",
+    "ko": "응시하다; 응시"
+  },
+  {
+    "en": "refine",
+    "ko": "정제하다, 개선하다"
+  },
+  {
+    "en": "distraction",
+    "ko": "주의 산만, 주의를 흩뜨리는 것"
+  },
+  {
+    "en": "priceless",
+    "ko": "매우 귀중한"
+  },
+  {
+    "en": "supreme",
+    "ko": "최고의"
+  },
+  {
+    "en": "context",
+    "ko": "맥락, 문맥"
+  },
+  {
+    "en": "curriculum",
+    "ko": "교육과정"
+  },
+  {
+    "en": "cheer",
+    "ko": "환호하다, 격려하다; 환호"
+  },
+  {
+    "en": "abuse",
+    "ko": "남용하다, 학대하다; 남용, 학대"
+  },
+  {
+    "en": "complete",
+    "ko": "완전한; 완성하다"
+  },
+  {
+    "en": "sew",
+    "ko": "바느질하다"
+  },
+  {
+    "en": "carve",
+    "ko": "조각하다, 새기다"
+  },
+  {
+    "en": "bystander",
+    "ko": "구경꾼, 방관자"
+  },
+  {
+    "en": "race",
+    "ko": "경주, 인종; 경주하다"
+  },
+  {
+    "en": "masculine",
+    "ko": "남성의, 남성적인"
+  },
+  {
+    "en": "tease",
+    "ko": "놀리다"
+  },
+  {
+    "en": "breakdown",
+    "ko": "고장, 붕괴"
+  },
+  {
+    "en": "dominate",
+    "ko": "지배하다"
+  },
+  {
+    "en": "frown",
+    "ko": "눈살을 찌푸리다; 찌푸린 얼굴"
+  },
+  {
+    "en": "aggressive",
+    "ko": "공격적인, 적극적인"
+  },
+  {
+    "en": "disguise",
+    "ko": "변장하다, 숨기다; 변장"
+  },
+  {
+    "en": "vehicle",
+    "ko": "탈것, 수단"
+  },
+  {
+    "en": "astound",
+    "ko": "몹시 놀라게 하다"
+  },
+  {
+    "en": "cure",
+    "ko": "치료하다; 치료법"
+  },
+  {
+    "en": "blueprint",
+    "ko": "청사진, 설계도"
+  },
+  {
+    "en": "complain",
+    "ko": "불평하다"
+  },
+  {
+    "en": "dictator",
+    "ko": "독재자"
+  },
+  {
+    "en": "attribute",
+    "ko": "~의 탓으로 돌리다; 속성"
+  },
+  {
+    "en": "rear",
+    "ko": "뒤쪽; 기르다"
+  },
+  {
+    "en": "brochure",
+    "ko": "소책자, 안내책자"
+  },
+  {
+    "en": "assessment",
+    "ko": "평가"
+  },
+  {
+    "en": "foster",
+    "ko": "기르다, 촉진하다"
+  },
+  {
+    "en": "output",
+    "ko": "생산량, 산출물"
+  },
+  {
+    "en": "force",
+    "ko": "힘; 강요하다"
+  },
+  {
+    "en": "crucial",
+    "ko": "중대한, 결정적인"
+  },
+  {
+    "en": "psychologist",
+    "ko": "심리학자"
+  },
+  {
+    "en": "sermon",
+    "ko": "설교"
+  },
+  {
+    "en": "nest",
+    "ko": "둥지"
+  },
+  {
+    "en": "paralysis",
+    "ko": "마비"
+  },
+  {
+    "en": "postpone",
+    "ko": "연기하다"
+  },
+  {
+    "en": "sprout",
+    "ko": "싹이 트다; 새싹"
+  },
+  {
+    "en": "gain",
+    "ko": "얻다; 이익"
+  },
+  {
+    "en": "deck",
+    "ko": "갑판"
+  },
+  {
+    "en": "rob",
+    "ko": "강탈하다, 털다"
+  },
+  {
+    "en": "tin",
+    "ko": "주석, 깡통"
+  },
+  {
+    "en": "reform",
+    "ko": "개혁하다; 개혁"
+  },
+  {
+    "en": "deliver",
+    "ko": "배달하다, 전달하다"
+  },
+  {
+    "en": "hostile",
+    "ko": "적대적인"
+  },
+  {
+    "en": "perseverance",
+    "ko": "인내, 끈기"
+  },
+  {
+    "en": "deal",
+    "ko": "다루다, 거래하다; 거래"
+  },
+  {
+    "en": "reject",
+    "ko": "거절하다"
+  },
+  {
+    "en": "contend",
+    "ko": "주장하다, 다투다"
+  },
+  {
+    "en": "fatal",
+    "ko": "치명적인"
+  },
+  {
+    "en": "recruit",
+    "ko": "모집하다; 신입 회원"
+  },
+  {
+    "en": "nourish",
+    "ko": "영양분을 공급하다, 기르다"
+  },
+  {
+    "en": "respect",
+    "ko": "존경하다; 존경, 측면"
+  },
+  {
+    "en": "substitute",
+    "ko": "대신하다; 대체물"
+  },
+  {
+    "en": "maintain",
+    "ko": "유지하다, 주장하다"
+  },
+  {
+    "en": "bay",
+    "ko": "만"
+  },
+  {
+    "en": "await",
+    "ko": "기다리다"
+  },
+  {
+    "en": "invert",
+    "ko": "뒤집다"
+  },
+  {
+    "en": "workshop",
+    "ko": "작업장, 연수회"
+  },
+  {
+    "en": "stun",
+    "ko": "기절시키다, 깜짝 놀라게 하다"
+  },
+  {
+    "en": "concrete",
+    "ko": "구체적인; 콘크리트"
+  },
+  {
+    "en": "tension",
+    "ko": "긴장, 장력"
+  },
+  {
+    "en": "patient",
+    "ko": "참을성 있는; 환자"
+  },
+  {
+    "en": "particular",
+    "ko": "특정한, 특별한"
+  },
+  {
+    "en": "satisfy",
+    "ko": "만족시키다"
+  },
+  {
+    "en": "reign",
+    "ko": "통치하다; 통치"
+  },
+  {
+    "en": "convention",
+    "ko": "관습, 대회"
+  },
+  {
+    "en": "bulletin",
+    "ko": "게시, 공고"
+  },
+  {
+    "en": "literate",
+    "ko": "읽고 쓸 줄 아는"
+  },
+  {
+    "en": "crack",
+    "ko": "금, 틈; 금이 가다"
+  },
+  {
+    "en": "devastate",
+    "ko": "황폐화하다, 큰 충격을 주다"
+  },
+  {
+    "en": "fluid",
+    "ko": "유체; 유동적인"
+  },
+  {
+    "en": "variable",
+    "ko": "변하기 쉬운; 변수"
+  },
+  {
+    "en": "startle",
+    "ko": "깜짝 놀라게 하다"
+  },
+  {
+    "en": "reap",
+    "ko": "수확하다, 거두다"
+  },
+  {
+    "en": "affair",
+    "ko": "일, 사건"
+  },
+  {
+    "en": "lease",
+    "ko": "임대차 계약; 임대하다"
+  },
+  {
+    "en": "discourage",
+    "ko": "낙담시키다, 단념시키다"
+  },
+  {
+    "en": "overlook",
+    "ko": "간과하다, 내려다보다"
+  },
+  {
+    "en": "dawn",
+    "ko": "새벽; 밝아 오다"
+  },
+  {
+    "en": "rule",
+    "ko": "규칙; 지배하다"
+  },
+  {
+    "en": "compensate",
+    "ko": "보상하다"
+  },
+  {
+    "en": "convert",
+    "ko": "전환하다, 개조하다"
+  },
+  {
+    "en": "dignity",
+    "ko": "존엄, 품위"
+  },
+  {
+    "en": "peculiar",
+    "ko": "특이한, 고유의"
+  },
+  {
+    "en": "gigantic",
+    "ko": "거대한"
+  },
+  {
+    "en": "strike",
+    "ko": "치다; 파업"
+  },
+  {
+    "en": "notify",
+    "ko": "알리다"
+  },
+  {
+    "en": "sake",
+    "ko": "이익, 목적"
+  },
+  {
+    "en": "meditate",
+    "ko": "명상하다"
+  },
+  {
+    "en": "suppress",
+    "ko": "억압하다, 억누르다"
+  },
+  {
+    "en": "animate",
+    "ko": "생기를 불어넣다, 움직이게 하다"
+  },
+  {
+    "en": "choke",
+    "ko": "질식하다, 질식시키다"
+  },
+  {
+    "en": "mow",
+    "ko": "풀을 깎다"
+  },
+  {
+    "en": "core",
+    "ko": "핵심"
+  },
+  {
+    "en": "prevent",
+    "ko": "막다, 예방하다"
+  },
+  {
+    "en": "folktale",
+    "ko": "민간 설화"
+  },
+  {
+    "en": "evolve",
+    "ko": "진화하다, 발전하다"
+  },
+  {
+    "en": "contribute",
+    "ko": "기여하다, 기부하다"
+  },
+  {
+    "en": "bilingual",
+    "ko": "두 언어를 사용하는"
+  },
+  {
+    "en": "simultaneously",
+    "ko": "동시에"
+  },
+  {
+    "en": "chase",
+    "ko": "뒤쫓다; 추적"
+  },
+  {
+    "en": "spear",
+    "ko": "창"
+  },
+  {
+    "en": "mischief",
+    "ko": "장난, 해악"
+  },
+  {
+    "en": "range",
+    "ko": "범위; ~에 걸치다"
+  },
+  {
+    "en": "afflict",
+    "ko": "괴롭히다"
+  },
+  {
+    "en": "renowned",
+    "ko": "유명한"
+  },
+  {
+    "en": "discriminate",
+    "ko": "차별하다, 구별하다"
+  },
+  {
+    "en": "groom",
+    "ko": "신랑; 손질하다"
+  },
+  {
+    "en": "empirical",
+    "ko": "경험적인, 실증적인"
+  },
+  {
+    "en": "era",
+    "ko": "시대"
+  },
+  {
+    "en": "exemplify",
+    "ko": "예시하다, 전형적으로 보여 주다"
+  },
+  {
+    "en": "supernatural",
+    "ko": "초자연적인"
+  },
+  {
+    "en": "coherent",
+    "ko": "일관성 있는, 조리 있는"
+  },
+  {
+    "en": "withdraw",
+    "ko": "철회하다, 인출하다"
+  },
+  {
+    "en": "adhere",
+    "ko": "들러붙다, 고수하다"
+  },
+  {
+    "en": "tender",
+    "ko": "부드러운, 연한"
+  },
+  {
+    "en": "intolerable",
+    "ko": "참을 수 없는"
+  },
+  {
+    "en": "separate",
+    "ko": "분리하다; 별개의"
+  },
+  {
+    "en": "superb",
+    "ko": "훌륭한"
+  },
+  {
+    "en": "instinct",
+    "ko": "본능"
+  },
+  {
+    "en": "fountain",
+    "ko": "분수, 원천"
+  },
+  {
+    "en": "bold",
+    "ko": "대담한"
+  },
+  {
+    "en": "promote",
+    "ko": "촉진하다, 승진시키다"
+  },
+  {
+    "en": "conceal",
+    "ko": "숨기다"
+  },
+  {
+    "en": "boast",
+    "ko": "자랑하다"
+  },
+  {
+    "en": "compliment",
+    "ko": "칭찬; 칭찬하다"
+  },
+  {
+    "en": "weep",
+    "ko": "울다"
+  },
+  {
+    "en": "retreat",
+    "ko": "후퇴하다; 후퇴"
+  },
+  {
+    "en": "neutral",
+    "ko": "중립적인"
+  },
+  {
+    "en": "summit",
+    "ko": "정상, 정상 회담"
+  },
+  {
+    "en": "grasp",
+    "ko": "붙잡다, 이해하다"
+  },
+  {
+    "en": "compulsive",
+    "ko": "강박적인"
+  },
+  {
+    "en": "stain",
+    "ko": "얼룩; 얼룩지게 하다"
+  },
+  {
+    "en": "troop",
+    "ko": "군대, 무리"
+  },
+  {
+    "en": "overall",
+    "ko": "전반적인; 전반적으로"
+  },
+  {
+    "en": "clinic",
+    "ko": "진료소"
+  },
+  {
+    "en": "incentive",
+    "ko": "장려책, 동기"
+  },
+  {
+    "en": "alter",
+    "ko": "바꾸다"
+  },
+  {
+    "en": "superstition",
+    "ko": "미신"
+  },
+  {
+    "en": "banner",
+    "ko": "현수막, 깃발"
+  },
+  {
+    "en": "float",
+    "ko": "뜨다, 떠다니다"
+  },
+  {
+    "en": "conceive",
+    "ko": "생각해 내다, 임신하다"
+  },
+  {
+    "en": "colony",
+    "ko": "식민지, 군집"
+  },
+  {
+    "en": "formulate",
+    "ko": "만들어 내다, 공식화하다"
+  },
+  {
+    "en": "tendency",
+    "ko": "경향"
+  },
+  {
+    "en": "durability",
+    "ko": "내구성"
+  },
+  {
+    "en": "absurd",
+    "ko": "터무니없는"
+  },
+  {
+    "en": "vow",
+    "ko": "맹세하다; 맹세"
+  },
+  {
+    "en": "applause",
+    "ko": "박수갈채"
+  },
+  {
+    "en": "destroy",
+    "ko": "파괴하다"
+  },
+  {
+    "en": "conduct",
+    "ko": "수행하다, 지휘하다; 행동"
+  },
+  {
+    "en": "malnutrition",
+    "ko": "영양실조"
+  },
+  {
+    "en": "wrestle",
+    "ko": "몸싸움하다, 씨름하다"
+  },
+  {
+    "en": "shallow",
+    "ko": "얕은"
+  },
+  {
+    "en": "dormitory",
+    "ko": "기숙사"
+  },
+  {
+    "en": "heritage",
+    "ko": "유산"
+  },
+  {
+    "en": "sensation",
+    "ko": "감각, 느낌, 큰 화제"
+  },
+  {
+    "en": "face",
+    "ko": "얼굴; 직면하다"
+  },
+  {
+    "en": "prone",
+    "ko": "~하기 쉬운, 엎드린"
+  },
+  {
+    "en": "undergo",
+    "ko": "겪다"
+  },
+  {
+    "en": "Confucian",
+    "ko": "유교의, 공자의"
+  },
+  {
+    "en": "draft",
+    "ko": "초안; 초안을 작성하다"
+  },
+  {
+    "en": "reservoir",
+    "ko": "저수지, 저장소"
+  },
+  {
+    "en": "subtract",
+    "ko": "빼다"
+  },
+  {
+    "en": "impulse",
+    "ko": "충동, 자극"
+  },
+  {
+    "en": "crude",
+    "ko": "가공하지 않은, 조잡한"
+  },
+  {
+    "en": "conform",
+    "ko": "따르다, 순응하다"
+  },
+  {
+    "en": "breed",
+    "ko": "번식하다, 기르다; 품종"
+  },
+  {
+    "en": "attend",
+    "ko": "참석하다, 돌보다"
+  },
+  {
+    "en": "supplement",
+    "ko": "보충하다; 보충물"
+  },
+  {
+    "en": "spacious",
+    "ko": "넓은"
+  },
+  {
+    "en": "utmost",
+    "ko": "최대의, 극도의"
+  },
+  {
+    "en": "trim",
+    "ko": "다듬다, 잘라 내다"
+  },
+  {
+    "en": "velocity",
+    "ko": "속도"
+  },
+  {
+    "en": "weave",
+    "ko": "짜다, 엮다"
+  },
+  {
+    "en": "proficient",
+    "ko": "능숙한"
+  },
+  {
+    "en": "navigate",
+    "ko": "길을 찾다, 항해하다"
+  },
+  {
+    "en": "tame",
+    "ko": "길들이다; 길들여진"
+  },
+  {
+    "en": "boundary",
+    "ko": "경계"
+  },
+  {
+    "en": "accumulate",
+    "ko": "축적하다"
+  },
+  {
+    "en": "remedy",
+    "ko": "치료법, 해결책; 바로잡다"
+  },
+  {
+    "en": "adapt",
+    "ko": "적응하다, 각색하다"
+  },
+  {
+    "en": "motive",
+    "ko": "동기"
+  },
+  {
+    "en": "embody",
+    "ko": "구현하다, 구체화하다"
+  },
+  {
+    "en": "consist",
+    "ko": "이루어져 있다"
+  },
+  {
+    "en": "manage",
+    "ko": "관리하다, 해내다"
+  },
+  {
+    "en": "tangible",
+    "ko": "만질 수 있는, 명백한"
+  },
+  {
+    "en": "equity",
+    "ko": "공평, 자기 자본"
+  },
+  {
+    "en": "imprint",
+    "ko": "찍다, 새기다; 자국"
+  },
+  {
+    "en": "dismay",
+    "ko": "실망, 당황; 낙담시키다"
+  },
+  {
+    "en": "prominent",
+    "ko": "두드러진, 저명한"
+  },
+  {
+    "en": "violate",
+    "ko": "위반하다"
+  },
+  {
+    "en": "modify",
+    "ko": "수정하다"
+  },
+  {
+    "en": "diagnose",
+    "ko": "진단하다"
+  },
+  {
+    "en": "rigid",
+    "ko": "뻣뻣한, 엄격한"
+  },
+  {
+    "en": "ambitious",
+    "ko": "야심 있는"
+  },
+  {
+    "en": "confine",
+    "ko": "제한하다, 가두다"
+  },
+  {
+    "en": "molecule",
+    "ko": "분자"
+  },
+  {
+    "en": "archaeology",
+    "ko": "고고학"
+  },
+  {
+    "en": "intact",
+    "ko": "온전한"
+  },
+  {
+    "en": "dispatch",
+    "ko": "파견하다, 발송하다"
+  },
+  {
+    "en": "diameter",
+    "ko": "지름"
+  },
+  {
+    "en": "soar",
+    "ko": "솟아오르다, 급등하다"
+  },
+  {
+    "en": "damp",
+    "ko": "축축한"
+  },
+  {
+    "en": "panel",
+    "ko": "판, 패널, 토론단"
+  },
+  {
+    "en": "anecdote",
+    "ko": "일화"
+  },
+  {
+    "en": "mock",
+    "ko": "조롱하다; 모의의"
+  },
+  {
+    "en": "script",
+    "ko": "대본, 문자"
+  },
+  {
+    "en": "linguistic",
+    "ko": "언어의"
+  },
+  {
+    "en": "spatial",
+    "ko": "공간의"
+  },
+  {
+    "en": "disclose",
+    "ko": "공개하다"
+  },
+  {
+    "en": "signify",
+    "ko": "의미하다, 나타내다"
+  },
+  {
+    "en": "flourish",
+    "ko": "번성하다"
+  },
+  {
+    "en": "blame",
+    "ko": "탓하다; 책임"
+  },
+  {
+    "en": "exhibit",
+    "ko": "전시하다; 전시품"
+  },
+  {
+    "en": "discuss",
+    "ko": "논의하다"
+  },
+  {
+    "en": "feed",
+    "ko": "먹이를 주다, 먹이다"
+  },
+  {
+    "en": "geology",
+    "ko": "지질학"
+  },
+  {
+    "en": "symptom",
+    "ko": "증상"
+  },
+  {
+    "en": "sibling",
+    "ko": "형제자매"
+  },
+  {
+    "en": "sophomore",
+    "ko": "2학년생"
+  },
+  {
+    "en": "pledge",
+    "ko": "약속하다; 서약"
+  },
+  {
+    "en": "invent",
+    "ko": "발명하다"
+  },
+  {
+    "en": "lay",
+    "ko": "놓다, 낳다"
+  },
+  {
+    "en": "remind",
+    "ko": "상기시키다"
+  },
+  {
+    "en": "cost",
+    "ko": "비용; 비용이 들다"
+  },
+  {
+    "en": "awkward",
+    "ko": "어색한, 서투른"
+  },
+  {
+    "en": "surveillance",
+    "ko": "감시"
+  },
+  {
+    "en": "sole",
+    "ko": "유일한; 발바닥, 밑창"
+  },
+  {
+    "en": "earn",
+    "ko": "벌다, 얻다"
+  },
+  {
+    "en": "grind",
+    "ko": "갈다, 빻다"
+  },
+  {
+    "en": "discharge",
+    "ko": "방출하다, 퇴원시키다; 방출"
+  },
+  {
+    "en": "pillar",
+    "ko": "기둥"
+  },
+  {
+    "en": "detect",
+    "ko": "발견하다, 감지하다"
+  },
+  {
+    "en": "expose",
+    "ko": "노출하다, 폭로하다"
+  },
+  {
+    "en": "thorough",
+    "ko": "철저한"
+  },
+  {
+    "en": "explode",
+    "ko": "폭발하다"
+  },
+  {
+    "en": "temperate",
+    "ko": "온화한, 절제하는"
+  },
+  {
+    "en": "closet",
+    "ko": "벽장"
+  },
+  {
+    "en": "undertake",
+    "ko": "맡다, 착수하다"
+  },
+  {
+    "en": "illusion",
+    "ko": "착각, 환상"
+  },
+  {
+    "en": "submit",
+    "ko": "제출하다, 굴복하다"
+  },
+  {
+    "en": "revive",
+    "ko": "되살아나다, 소생시키다"
+  },
+  {
+    "en": "bounce",
+    "ko": "튀다, 튀어 오르다"
+  },
+  {
+    "en": "regard",
+    "ko": "여기다; 관심, 존중"
+  },
+  {
+    "en": "divine",
+    "ko": "신의, 신성한"
+  },
+  {
+    "en": "equator",
+    "ko": "적도"
+  },
+  {
+    "en": "imprison",
+    "ko": "투옥하다"
+  },
+  {
+    "en": "convenience",
+    "ko": "편리, 편의"
+  },
+  {
+    "en": "revenue",
+    "ko": "수입, 세입"
+  },
+  {
+    "en": "motion",
+    "ko": "움직임, 동작"
+  },
+  {
+    "en": "enlist",
+    "ko": "입대하다, 도움을 얻다"
+  },
+  {
+    "en": "hygiene",
+    "ko": "위생"
+  },
+  {
+    "en": "corrupt",
+    "ko": "부패한; 부패시키다"
+  },
+  {
+    "en": "patent",
+    "ko": "특허; 특허를 받다"
+  },
+  {
+    "en": "carbon",
+    "ko": "탄소"
+  },
+  {
+    "en": "rush",
+    "ko": "서두르다; 돌진"
+  },
+  {
+    "en": "mention",
+    "ko": "언급하다; 언급"
+  },
+  {
+    "en": "virtue",
+    "ko": "미덕, 장점"
+  },
+  {
+    "en": "upcoming",
+    "ko": "다가오는"
+  },
+  {
+    "en": "contaminate",
+    "ko": "오염시키다"
+  },
+  {
+    "en": "factual",
+    "ko": "사실에 근거한"
+  },
+  {
+    "en": "arithmetic",
+    "ko": "산수, 연산"
+  },
+  {
+    "en": "trace",
+    "ko": "추적하다; 흔적"
+  },
+  {
+    "en": "external",
+    "ko": "외부의"
+  },
+  {
+    "en": "swamp",
+    "ko": "늪; 뒤덮다"
+  },
+  {
+    "en": "consistent",
+    "ko": "일관된"
+  },
+  {
+    "en": "pulse",
+    "ko": "맥박"
+  },
+  {
+    "en": "herd",
+    "ko": "떼, 무리"
+  },
+  {
+    "en": "expedition",
+    "ko": "탐험, 원정"
+  },
+  {
+    "en": "cognitive",
+    "ko": "인지의"
+  },
+  {
+    "en": "locate",
+    "ko": "위치를 찾다, 위치시키다"
+  },
+  {
+    "en": "allocate",
+    "ko": "할당하다"
+  },
+  {
+    "en": "abnormal",
+    "ko": "비정상적인"
+  },
+  {
+    "en": "hinder",
+    "ko": "방해하다"
+  },
+  {
+    "en": "controversy",
+    "ko": "논란"
+  },
+  {
+    "en": "gorgeous",
+    "ko": "아주 멋진, 화려한"
+  },
+  {
+    "en": "confess",
+    "ko": "고백하다"
+  },
+  {
+    "en": "warrant",
+    "ko": "정당화하다, 보증하다; 영장"
+  },
+  {
+    "en": "lottery",
+    "ko": "복권"
+  },
+  {
+    "en": "depth",
+    "ko": "깊이"
+  },
+  {
+    "en": "subjective",
+    "ko": "주관적인"
+  },
+  {
+    "en": "complement",
+    "ko": "보완하다; 보완물"
+  },
+  {
+    "en": "certificate",
+    "ko": "증명서"
+  },
+  {
+    "en": "evaporate",
+    "ko": "증발하다"
+  },
+  {
+    "en": "trivial",
+    "ko": "사소한"
+  },
+  {
+    "en": "ceramic",
+    "ko": "도자기의; 도자기 제품"
+  },
+  {
+    "en": "transplant",
+    "ko": "이식하다; 이식"
+  },
+  {
+    "en": "lame",
+    "ko": "다리를 저는, 설득력 없는"
+  },
+  {
+    "en": "acknowledge",
+    "ko": "인정하다"
+  },
+  {
+    "en": "license",
+    "ko": "면허, 허가증; 허가하다"
+  },
+  {
+    "en": "cluster",
+    "ko": "무리, 송이; 모이다"
+  },
+  {
+    "en": "intelligence",
+    "ko": "지능, 정보"
+  },
+  {
+    "en": "accord",
+    "ko": "일치, 합의; 부여하다"
+  },
+  {
+    "en": "emerge",
+    "ko": "나타나다"
+  },
+  {
+    "en": "plea",
+    "ko": "간청, 탄원"
+  },
+  {
+    "en": "sour",
+    "ko": "신, 시큼한"
+  },
+  {
+    "en": "immense",
+    "ko": "엄청난, 막대한"
+  },
+  {
+    "en": "halt",
+    "ko": "멈추다; 정지"
+  },
+  {
+    "en": "derive",
+    "ko": "얻다, 유래하다"
+  },
+  {
+    "en": "repetitive",
+    "ko": "반복적인"
+  },
+  {
+    "en": "extract",
+    "ko": "추출하다; 발췌문"
+  },
+  {
+    "en": "pierce",
+    "ko": "뚫다, 찌르다"
+  },
+  {
+    "en": "plague",
+    "ko": "전염병; 괴롭히다"
+  },
+  {
+    "en": "oppress",
+    "ko": "억압하다"
+  },
+  {
+    "en": "sewage",
+    "ko": "하수"
+  },
+  {
+    "en": "ponder",
+    "ko": "숙고하다"
+  },
+  {
+    "en": "ultrasound",
+    "ko": "초음파"
+  },
+  {
+    "en": "leftover",
+    "ko": "남은; 남은 음식"
+  },
+  {
+    "en": "reconciliation",
+    "ko": "화해, 조정"
+  },
+  {
+    "en": "burglar",
+    "ko": "빈집털이범"
+  },
+  {
+    "en": "deluxe",
+    "ko": "호화로운"
+  },
+  {
+    "en": "embrace",
+    "ko": "포옹하다, 받아들이다"
+  },
+  {
+    "en": "explore",
+    "ko": "탐험하다, 탐구하다"
+  },
+  {
+    "en": "stroke",
+    "ko": "타격, 뇌졸중; 쓰다듬다"
+  },
+  {
+    "en": "convey",
+    "ko": "전달하다, 운반하다"
+  },
+  {
+    "en": "blade",
+    "ko": "날, 칼날"
+  },
+  {
+    "en": "abundant",
+    "ko": "풍부한"
+  },
+  {
+    "en": "shrub",
+    "ko": "관목"
+  },
+  {
+    "en": "obsess",
+    "ko": "사로잡다, 집착하게 하다"
+  },
+  {
+    "en": "retain",
+    "ko": "유지하다, 보유하다"
+  },
+  {
+    "en": "duplicate",
+    "ko": "복제하다; 복제본"
+  },
+  {
+    "en": "slice",
+    "ko": "얇은 조각; 얇게 썰다"
+  },
+  {
+    "en": "suitor",
+    "ko": "구혼자"
+  },
+  {
+    "en": "maximize",
+    "ko": "극대화하다"
+  },
+  {
+    "en": "spoil",
+    "ko": "망치다, 상하다"
+  },
+  {
+    "en": "exotic",
+    "ko": "이국적인"
+  },
+  {
+    "en": "rational",
+    "ko": "합리적인"
+  },
+  {
+    "en": "buildup",
+    "ko": "축적, 증가"
+  },
+  {
+    "en": "altitude",
+    "ko": "고도"
+  },
+  {
+    "en": "arrogant",
+    "ko": "거만한"
+  },
+  {
+    "en": "discreet",
+    "ko": "신중한, 조심스러운"
+  },
+  {
+    "en": "machinery",
+    "ko": "기계류"
+  },
+  {
+    "en": "glimpse",
+    "ko": "언뜻 봄; 언뜻 보다"
+  },
+  {
+    "en": "vanish",
+    "ko": "사라지다"
+  },
+  {
+    "en": "pioneer",
+    "ko": "개척자; 개척하다"
+  },
+  {
+    "en": "sacrifice",
+    "ko": "희생; 희생하다"
+  },
+  {
+    "en": "blend",
+    "ko": "섞다; 혼합물"
+  },
+  {
+    "en": "outbreak",
+    "ko": "발생, 발발"
+  },
+  {
+    "en": "assert",
+    "ko": "주장하다"
+  },
+  {
+    "en": "auditorium",
+    "ko": "강당"
+  },
+  {
+    "en": "swell",
+    "ko": "부풀다, 붓다"
+  },
+  {
+    "en": "accommodate",
+    "ko": "수용하다, 숙박시키다"
+  },
+  {
+    "en": "undo",
+    "ko": "원상태로 돌리다, 풀다"
+  },
+  {
+    "en": "linger",
+    "ko": "남아 있다, 머무르다"
+  },
+  {
+    "en": "grief",
+    "ko": "슬픔"
+  },
+  {
+    "en": "cozy",
+    "ko": "아늑한"
+  },
+  {
+    "en": "inevitable",
+    "ko": "불가피한"
+  },
+  {
+    "en": "neglect",
+    "ko": "방치하다, 소홀히 하다"
+  },
+  {
+    "en": "beverage",
+    "ko": "음료"
+  },
+  {
+    "en": "recommend",
+    "ko": "추천하다"
+  },
+  {
+    "en": "elaborate",
+    "ko": "정교한; 상세히 설명하다"
+  },
+  {
+    "en": "feedback",
+    "ko": "반응, 피드백"
+  },
+  {
+    "en": "warrior",
+    "ko": "전사"
+  },
+  {
+    "en": "auction",
+    "ko": "경매"
+  },
+  {
+    "en": "toss",
+    "ko": "던지다"
+  },
+  {
+    "en": "radioactive",
+    "ko": "방사성의"
+  },
+  {
+    "en": "impair",
+    "ko": "손상시키다"
+  },
+  {
+    "en": "shield",
+    "ko": "방패; 보호하다"
+  },
+  {
+    "en": "ornament",
+    "ko": "장식품; 장식하다"
+  },
+  {
+    "en": "stimulate",
+    "ko": "자극하다"
+  },
+  {
+    "en": "metaphor",
+    "ko": "은유"
+  },
+  {
+    "en": "ecology",
+    "ko": "생태학"
+  },
+  {
+    "en": "probe",
+    "ko": "조사하다; 탐사 장치"
+  },
+  {
+    "en": "fabric",
+    "ko": "직물, 구조"
+  },
+  {
+    "en": "predominant",
+    "ko": "지배적인, 두드러진"
+  },
+  {
+    "en": "coverage",
+    "ko": "보도, 적용 범위"
+  },
+  {
+    "en": "vibrate",
+    "ko": "진동하다"
+  },
+  {
+    "en": "overturn",
+    "ko": "뒤집다, 뒤집히다"
+  },
+  {
+    "en": "bruise",
+    "ko": "멍; 멍들게 하다"
+  },
+  {
+    "en": "expel",
+    "ko": "쫓아내다, 배출하다"
+  },
+  {
+    "en": "speculate",
+    "ko": "추측하다, 투기하다"
+  },
+  {
+    "en": "ripe",
+    "ko": "익은"
+  },
+  {
+    "en": "attorney",
+    "ko": "변호사"
+  },
+  {
+    "en": "plow",
+    "ko": "쟁기; 밭을 갈다"
+  },
+  {
+    "en": "versus",
+    "ko": "~대, ~와 대비하여"
+  },
+  {
+    "en": "framework",
+    "ko": "틀, 체계"
+  },
+  {
+    "en": "sanitation",
+    "ko": "위생, 위생 시설"
+  },
+  {
+    "en": "prolong",
+    "ko": "연장하다"
+  },
+  {
+    "en": "pregnant",
+    "ko": "임신한"
+  },
+  {
+    "en": "urgent",
+    "ko": "긴급한"
+  },
+  {
+    "en": "heredity",
+    "ko": "유전"
+  },
+  {
+    "en": "fluent",
+    "ko": "유창한"
+  },
+  {
+    "en": "epidemic",
+    "ko": "유행병; 유행성의"
+  },
+  {
+    "en": "settle",
+    "ko": "해결하다, 정착하다"
+  },
+  {
+    "en": "naive",
+    "ko": "순진한"
+  },
+  {
+    "en": "margin",
+    "ko": "가장자리, 차이, 여유"
+  },
+  {
+    "en": "precede",
+    "ko": "앞서다"
+  },
+  {
+    "en": "conflict",
+    "ko": "갈등, 충돌; 충돌하다"
+  },
+  {
+    "en": "shed",
+    "ko": "흘리다, 벗다; 헛간"
+  },
+  {
+    "en": "induce",
+    "ko": "유도하다"
+  },
+  {
+    "en": "breathtaking",
+    "ko": "숨이 멎을 듯한"
+  },
+  {
+    "en": "vapor",
+    "ko": "증기"
+  },
+  {
+    "en": "metropolitan",
+    "ko": "대도시의"
+  },
+  {
+    "en": "interior",
+    "ko": "내부; 내부의"
+  },
+  {
+    "en": "foundation",
+    "ko": "기초, 재단"
+  },
+  {
+    "en": "tuition",
+    "ko": "수업료, 교육"
+  },
+  {
+    "en": "literature",
+    "ko": "문학"
+  },
+  {
+    "en": "anonymous",
+    "ko": "익명의"
+  },
+  {
+    "en": "resemble",
+    "ko": "닮다"
+  },
+  {
+    "en": "disrupt",
+    "ko": "방해하다, 혼란에 빠뜨리다"
+  },
+  {
+    "en": "compound",
+    "ko": "화합물; 복합의; 악화시키다"
+  },
+  {
+    "en": "collide",
+    "ko": "충돌하다"
+  },
+  {
+    "en": "orchard",
+    "ko": "과수원"
+  },
+  {
+    "en": "solitary",
+    "ko": "혼자의, 고독한"
+  },
+  {
+    "en": "quote",
+    "ko": "인용하다; 인용"
+  },
+  {
+    "en": "memorial",
+    "ko": "기념물; 추모의"
+  },
+  {
+    "en": "compassion",
+    "ko": "연민, 동정"
+  },
+  {
+    "en": "bury",
+    "ko": "묻다"
+  },
+  {
+    "en": "inhale",
+    "ko": "들이마시다"
+  },
+  {
+    "en": "vacant",
+    "ko": "비어 있는"
+  },
+  {
+    "en": "preoccupation",
+    "ko": "몰두, 마음을 사로잡는 일"
+  },
+  {
+    "en": "rust",
+    "ko": "녹; 녹슬다"
+  },
+  {
+    "en": "prospect",
+    "ko": "전망, 가능성"
+  },
+  {
+    "en": "technical",
+    "ko": "기술의, 전문적인"
+  },
+  {
+    "en": "paste",
+    "ko": "풀; 붙이다"
+  },
+  {
+    "en": "fad",
+    "ko": "일시적 유행"
+  },
+  {
+    "en": "anchor",
+    "ko": "닻; 정박시키다"
+  },
+  {
+    "en": "thrill",
+    "ko": "전율, 흥분; 흥분시키다"
+  },
+  {
+    "en": "provoke",
+    "ko": "유발하다, 화나게 하다"
+  },
+  {
+    "en": "referee",
+    "ko": "심판"
+  },
+  {
+    "en": "asymmetry",
+    "ko": "비대칭"
+  },
+  {
+    "en": "wander",
+    "ko": "돌아다니다, 헤매다"
+  },
+  {
+    "en": "wicked",
+    "ko": "사악한"
+  },
+  {
+    "en": "sector",
+    "ko": "부문, 구역"
+  },
+  {
+    "en": "loop",
+    "ko": "고리; 고리 모양을 만들다"
+  },
+  {
+    "en": "proportion",
+    "ko": "비율, 부분"
+  },
+  {
+    "en": "sprain",
+    "ko": "삐다; 삠"
+  },
+  {
+    "en": "boost",
+    "ko": "증가시키다, 북돋우다"
+  },
+  {
+    "en": "withstand",
+    "ko": "견디다"
+  },
+  {
+    "en": "antibiotic",
+    "ko": "항생제"
+  },
+  {
+    "en": "sequence",
+    "ko": "순서, 연속"
+  },
+  {
+    "en": "gymnastics",
+    "ko": "체조"
+  },
+  {
+    "en": "implement",
+    "ko": "실행하다; 도구"
+  },
+  {
+    "en": "overtake",
+    "ko": "추월하다"
+  },
+  {
+    "en": "stool",
+    "ko": "등받이 없는 의자, 대변"
+  },
+  {
+    "en": "gross",
+    "ko": "총체의, 심한; 총수입을 올리다"
+  }
+];
+
+const $ = id => document.getElementById(id);
+let deck=[], results=[], index=0, revealed=false, busy=false;
+const shuffle = a => {const b=a.slice(); for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
+function startSession(pool=getPool(), review=false){
+ deck=shuffle(pool).slice(0,review?pool.length:20);results=[];index=0;busy=false;
+ $('wordList').replaceChildren();$('resultScreen').classList.add('hidden');$('testScreen').classList.remove('hidden');showWord();
+}
+function showWord(){
+ revealed=false;$('wordDisplay').textContent=deck[index].en;
+
+ $('meaning').textContent='';$('revealBtn').disabled=false;$('revealBtn').textContent='뜻 확인';
+ $('btnO').disabled=true;$('btnX').disabled=true;$('feedback').textContent='';$('feedback').classList.remove('strong-feedback');
+ $('progressCount').textContent=`${index} / ${deck.length}`;
+}
+function reveal(){if(busy)return;revealed=true;$('meaning').textContent=deck[index].ko;$('revealBtn').disabled=true;$('btnO').disabled=false;$('btnX').disabled=false;}
+function answer(known){
+ if(!revealed||busy)return;busy=true;$('btnO').disabled=true;$('btnX').disabled=true;
+ const word=deck[index];results.push({word,known});
+ const li=document.createElement('li');li.className=known?'correct':'wrong';
+ const en=document.createElement('strong');en.textContent=word.en;
+ const ko=document.createElement('div');ko.textContent=word.ko;
+ const status=document.createElement('small');status.textContent=known?'기억나요':'복습';
+ li.append(en,ko,status);$('wordList').appendChild(li);$('wordList').scrollTop=$('wordList').scrollHeight;
+ const messages=['바보!!','멍청이!!!','제대로해!!!'];
+ $('feedback').textContent=known?'잘했어요!':messages[Math.floor(Math.random()*messages.length)];
+ $('feedback').classList.toggle('strong-feedback',!known);
+ $('feedback').style.color=known?'#8fe0c4':'#ff3978';
+ $('progressCount').textContent=`${index+1} / ${deck.length}`;
+ setTimeout(()=>{index++;busy=false;if(index===deck.length)finish();else showWord();},900);
+}
+function finish(){
+ $('testScreen').classList.add('hidden');$('resultScreen').classList.remove('hidden');
+ const missed=results.filter(r=>!r.known);
+ $('correctCount').textContent=`${results.length-missed.length}개`;$('finalScore').textContent=`${missed.length}개`;
+ $('resultGrid').replaceChildren();
+ for(const r of missed){const card=document.createElement('div');card.className='result-card wrong';const en=document.createElement('span');en.className='en';en.textContent=r.word.en;const ko=document.createElement('span');ko.className='ko';ko.textContent=r.word.ko;card.append(en,ko);$('resultGrid').appendChild(card);}
+ $('reviewBtn').disabled=!missed.length;$('reviewNote').textContent=missed.length?'아래 단어를 다시 익혀 보세요.':'이번 단어를 모두 기억했어요!';
+}
+$('revealBtn').addEventListener('click',reveal);
+$('btnO').addEventListener('click',()=>answer(true));$('btnX').addEventListener('click',()=>answer(false));
+$('retryBtn').addEventListener('click',()=>startSession());
+$('reviewBtn').addEventListener('click',()=>{const pool=results.filter(r=>!r.known).map(r=>r.word);if(pool.length)startSession(pool,true);});
+/* ===== 추가 / 삭제 기능 ===== */
+const LS_ADDED='wm_added_v1', LS_DEL='wm_deleted_v1';
+const keyOf=w=>w.en+'|'+w.ko;
+const lsLoad=k=>{try{const v=JSON.parse(localStorage.getItem(k));return Array.isArray(v)?v:[];}catch(e){return [];}};
+const lsSave=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}};
+let addedWords=lsLoad(LS_ADDED), deletedKeys=new Set(lsLoad(LS_DEL));
+function getPool(){return BASE_WORDS.filter(w=>!deletedKeys.has(keyOf(w))).concat(addedWords);}
+
+const openModal=id=>{$(id).classList.remove('hidden');};
+const closeModal=id=>{$(id).classList.add('hidden');};
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));});
+
+/* --- 네이버 영어사전 조회 --- */
+const hasKo=s=>/[가-힣]/.test(s);
+const stripTags=s=>String(s).replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
+const flat=(a,out=[])=>{if(Array.isArray(a))a.forEach(x=>flat(x,out));else if(a!=null)out.push(String(a));return out;};
+
+function parseApi3(json,q){
+  const map=json&&json.searchResultMap&&json.searchResultMap.searchResultListMap;
+  const items=(map&&map.WORD&&map.WORD.items)||[];
+  const it=items.find(i=>stripTags(i.expEntry||'').toLowerCase()===q.toLowerCase());
+  if(!it)return null;
+  const vals=[];
+  for(const c of (it.meansCollector||[])){for(const m of (c.means||[])){const v=stripTags(m.value||'');if(v&&hasKo(v))vals.push(v);}}
+  return vals.length?vals.slice(0,4).join(', '):null;
+}
+function parseAc(data,q){
+  const list=(data&&data.items&&data.items[0])||[];
+  for(const entry of list){
+    const s=flat(entry).map(stripTags).filter(Boolean);
+    if(s.length<2)continue;
+    if(s[0].toLowerCase()!==q.toLowerCase())continue;
+    const m=s.slice(1).find(hasKo);
+    if(m)return m;
+  }
+  return null;
+}
+function jsonp(url,timeout=6000){
+  return new Promise((res,rej)=>{
+    const cb='__nv'+Date.now()+Math.floor(Math.random()*1e4);
+    const s=document.createElement('script');
+    const done=()=>{clearTimeout(t);delete window[cb];s.remove();};
+    const t=setTimeout(()=>{done();rej(new Error('timeout'));},timeout);
+    window[cb]=d=>{done();res(d);};
+    s.onerror=()=>{done();rej(new Error('error'));};
+    s.src=url+'&_callback='+cb;
+    document.head.appendChild(s);
+  });
+}
+async function fetchJson(url,timeout=6000){
+  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeout);
+  try{const r=await fetch(url,{signal:ctl.signal});return await r.json();}finally{clearTimeout(t);}
+}
+async function lookupNaver(q){
+  const enc=encodeURIComponent(q);
+  try{
+    const j=await fetchJson(`https://en.dict.naver.com/api3/enko/search?query=${enc}&m=pc&range=word&lang=ko`);
+    const m=parseApi3(j,q);if(m)return m;
+  }catch(e){}
+  try{
+    const d=await jsonp(`https://ac-dict.naver.com/enko/ac?st=11&r_lt=11&q=${enc}&q_enc=utf-8&r_format=json&r_enc=utf-8&r_unicode=0&r_escape=1`);
+    const m=parseAc(d,q);if(m)return m;
+  }catch(e){}
+  return null;
+}
+
+/* --- 추가 --- */
+$('openAdd').addEventListener('click',()=>{$('addStatus').textContent='';openModal('addModal');setTimeout(()=>$('addWord').focus(),50);});
+let searching=false;
+async function doSearch(){
+  if(searching)return;
+  const q=$('addWord').value.trim();
+  if(!q){$('addStatus').textContent='영어 단어를 입력해 주세요.';return;}
+  if(!/^[A-Za-z][A-Za-z\-' ]*$/.test(q)){$('addStatus').textContent='영어 단어만 입력할 수 있어요.';return;}
+  searching=true;$('addSearch').disabled=true;$('addStatus').textContent='네이버 영어사전에서 찾는 중…';
+  const m=await lookupNaver(q);
+  searching=false;$('addSearch').disabled=false;
+  if(m){$('addMeaning').value=m;$('addStatus').textContent='네이버 영어사전 결과예요. 뜻은 고쳐도 돼요.';}
+  else{$('addStatus').textContent='뜻을 자동으로 가져오지 못했어요. 아래 칸에 뜻을 직접 적고 추가할 수 있어요.';$('addMeaning').focus();}
+}
+$('addSearch').addEventListener('click',doSearch);
+$('addWord').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doSearch();}});
+$('addMeaning').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addConfirm').click();}});
+$('addConfirm').addEventListener('click',()=>{
+  const en=$('addWord').value.trim(), ko=$('addMeaning').value.trim();
+  if(!en||!ko){$('addStatus').textContent='단어와 뜻을 모두 입력해 주세요.';return;}
+  if(getPool().some(w=>w.en.toLowerCase()===en.toLowerCase())){$('addStatus').textContent='이미 퀴즈에 있는 단어예요.';return;}
+  const w={en,ko};
+  addedWords.push(w);
+  const ok=lsSave(LS_ADDED,addedWords);
+  // 진행 중인 연습이면 바로 다음 순서에 끼워 넣기
+  if(!$('testScreen').classList.contains('hidden')&&!busy&&deck.length){
+    deck.splice(index+1,0,w);
+    $('progressCount').textContent=`${index+(revealed?1:0)} / ${deck.length}`;
+  }
+  $('addWord').value='';$('addMeaning').value='';
+  $('addStatus').textContent=`"${en}" 추가 완료!`+(ok?'':' (저장 공간 문제로 새로고침하면 사라질 수 있어요)');
+  $('addWord').focus();
+});
+
+/* --- 삭제 --- */
+let delSelected=new Set();
+function updateDelUI(){
+  $('delCount').textContent=`${delSelected.size}개 선택`;
+  $('delConfirm').disabled=delSelected.size===0;
+}
+$('openDel').addEventListener('click',()=>{
+  delSelected=new Set();$('delFilter').value='';
+  const frag=document.createDocumentFragment();
+  for(const w of getPool()){
+    const row=document.createElement('label');row.className='del-row';row.dataset.key=keyOf(w);row.dataset.q=(w.en+' '+w.ko).toLowerCase();
+    const cb=document.createElement('input');cb.type='checkbox';
+    const en=document.createElement('span');en.className='en';en.textContent=w.en;
+    const ko=document.createElement('span');ko.className='ko';ko.textContent=w.ko;
+    row.append(cb,en,ko);frag.appendChild(row);
+  }
+  $('delList').replaceChildren(frag);$('delList').scrollTop=0;
+  updateDelUI();openModal('delModal');
+});
+$('delList').addEventListener('change',e=>{
+  const row=e.target.closest('.del-row');if(!row)return;
+  if(e.target.checked){delSelected.add(row.dataset.key);row.classList.add('sel');}
+  else{delSelected.delete(row.dataset.key);row.classList.remove('sel');}
+  updateDelUI();
+});
+$('delFilter').addEventListener('input',()=>{
+  const q=$('delFilter').value.trim().toLowerCase();
+  for(const row of $('delList').children)row.style.display=(!q||row.dataset.q.includes(q))?'':'none';
+});
+$('delConfirm').addEventListener('click',()=>{
+  const n=delSelected.size;if(!n)return;
+  if(getPool().length-n<1){alert('단어를 전부 삭제할 수는 없어요. 최소 1개는 남겨 주세요.');return;}
+  if(!confirm(`${n}개 단어를 삭제할까요?\n삭제하면 퀴즈에서 완전히 사라지고, 지금 연습은 새로 시작돼요.`))return;
+  addedWords=addedWords.filter(w=>!delSelected.has(keyOf(w)));
+  for(const w of BASE_WORDS){const k=keyOf(w);if(delSelected.has(k))deletedKeys.add(k);}
+  lsSave(LS_ADDED,addedWords);lsSave(LS_DEL,[...deletedKeys]);
+  closeModal('delModal');startSession();
+});
+
+startSession();
+
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+</script>
+</body>
+</html>
