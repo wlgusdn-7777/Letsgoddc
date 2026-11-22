@@ -401,6 +401,33 @@
   .word-stage{padding-bottom:70px;}
   .toolbar{padding:0 0 10px;}
   @media (max-width:720px){ .sidebar{height:180px;} }
+
+  .starmark{color:#ffd500;font-weight:900;text-shadow:0 0 8px rgba(255,213,0,0.55);}
+  .modal.sticky{z-index:110;}
+
+  /* ---------- 틀린 단어장 ---------- */
+  .main-area{position:relative;}
+  .hard-btn{
+    position:absolute;top:10px;right:10px;z-index:5;
+    border:2px solid rgba(240,147,138,0.7);border-radius:999px;padding:8px 16px;
+    background:rgba(240,147,138,0.14);color:#ffd2cc;
+    font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:0.95rem;cursor:pointer;touch-action:manipulation;
+  }
+  .hard-btn b{display:inline-block;min-width:1.6em;margin-left:4px;padding:1px 6px;border-radius:999px;background:#e2776a;color:#3a0f0a;text-align:center;}
+  #hardModal{padding:0;align-items:stretch;justify-content:stretch;z-index:105;}
+  #hardModal .modal-box{width:100%;max-width:none;height:100%;max-height:none;border-radius:0;gap:12px;}
+  .hard-head{display:flex;align-items:center;gap:14px;flex:none;}
+  .hard-head h3{flex:none;}
+  .hard-head .m-status{flex:1;min-height:0;}
+  .hard-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding-right:4px;scroll-snap-type:y proximity;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+  .hard-card{
+    flex:none;height:50vh;height:50dvh;scroll-snap-align:start;box-sizing:border-box;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px;
+    background:rgba(243,239,225,0.07);border-radius:16px;box-shadow:inset 0 0 0 2px rgba(243,239,225,0.12);
+  }
+  .hard-card .en{font-family:'Gaegu',sans-serif;font-weight:700;font-size:clamp(2.6rem,8vw,5rem);color:var(--gold);line-height:1.1;word-break:break-word;}
+  .hard-card .ko{font-size:clamp(1.2rem,3vw,2rem);color:#f1f5ff;line-height:1.5;}
+  .hard-empty{margin:auto;text-align:center;color:var(--chalk-dim);line-height:1.7;padding:20px;}
 </style>
 </head>
 <body>
@@ -416,6 +443,7 @@
     </aside>
 
     <div class="main-area">
+      <button class="hard-btn" id="openHard" type="button">틀린 단어 <b id="hardCount">0</b></button>
       <div class="word-stage">
         <div class="word-display" id="wordDisplay"></div>
 
@@ -435,22 +463,6 @@
     </div>
   </div>
 
-  <div class="result-screen hidden" id="resultScreen">
-    <h2>이번 연습 정리</h2>
-    <div class="score-panel">
-      <div class="score-box">
-        <div class="label">기억한 단어</div>
-        <div class="value" id="correctCount">0 / 20</div>
-      </div>
-      <div class="score-box score">
-        <div class="label">복습할 단어</div>
-        <div class="value" id="finalScore">0개</div>
-      </div>
-    </div>
-    <p id="reviewNote"></p><div class="result-grid" id="resultGrid"></div>
-    <button class="retry-btn" id="reviewBtn">복습할 단어만 다시 연습</button>
-    <button class="retry-btn" id="retryBtn">새 단어 20개 연습</button>
-  </div>
 </div>
 
 <div class="modal hidden" id="addModal" role="dialog" aria-modal="true">
@@ -478,6 +490,31 @@
     <div class="row end">
       <button class="m-btn ghost" type="button" data-close="delModal">닫기</button>
       <button class="m-btn danger" id="delConfirm" type="button" disabled>선택한 단어 삭제</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="hardModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="hard-head">
+      <h3>틀린 단어장</h3>
+      <div class="m-status" id="hardInfo"></div>
+      <button class="m-btn ghost" type="button" data-close="hardModal">닫기</button>
+    </div>
+    <div class="hard-list" id="hardList"></div>
+  </div>
+</div>
+
+<div class="modal hidden sticky" id="promptModal" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h3>이 단어, 삭제할까요?</h3>
+    <div class="m-status" id="pIntro"></div>
+    <div class="m-status" id="pCount">0개 선택</div>
+    <div class="del-list" id="pList"></div>
+    <div class="row end">
+      <button class="m-btn ghost" type="button" id="pAll">전체 선택</button>
+      <button class="m-btn ghost" type="button" id="pKeep">유지하고 계속</button>
+      <button class="m-btn danger" type="button" id="pDelete" disabled>선택한 단어 삭제</button>
     </div>
   </div>
 </div>
@@ -2551,47 +2588,212 @@ const BASE_WORDS = [
 ];
 
 const $ = id => document.getElementById(id);
-let deck=[], results=[], index=0, revealed=false, busy=false;
 const shuffle = a => {const b=a.slice(); for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;};
-function startSession(pool=getPool(), review=false){
- deck=shuffle(pool).slice(0,review?pool.length:20);results=[];index=0;busy=false;
- $('wordList').replaceChildren();$('resultScreen').classList.add('hidden');$('testScreen').classList.remove('hidden');showWord();
+
+/* ===== 사이클 방식 퀴즈 =====
+   한 사이클 = 모든 단어를 무작위 순서로 한 번씩. 끝나면 순서를 새로 섞어 다음 사이클.
+   진행 상황은 브라우저에 저장돼서 나갔다 들어와도 이어져요. */
+const LS_STATE='wm_state_v2';
+const OK_MSG=['욜 ㅋㅋ','좀 하누','미친놈'];
+const NG_MSG=['븅 ㅋㅋ','깝치지말자','에휴'];
+const STREAK_GOAL=4;
+let S=null, revealed=false, busy=false, advTimer=null;
+const wordByKey=new Map();
+function rebuildMap(){wordByKey.clear();for(const w of getPool())wordByKey.set(keyOf(w),w);}
+const curWord=()=>wordByKey.get(S.order[S.pos]);
+function saveState(){lsSave(LS_STATE,S);}
+function loadState(){
+  try{const v=JSON.parse(localStorage.getItem(LS_STATE));
+    if(v&&Array.isArray(v.order)&&typeof v.pos==='number'&&v.ans&&v.streak)return v;}catch(e){}
+  return null;
+}
+function newOrder(avoidFirst){
+  const o=shuffle([...wordByKey.keys()]);
+  if(avoidFirst!=null&&o.length>1&&o[0]===avoidFirst){[o[0],o[1]]=[o[1],o[0]];}
+  return o;
+}
+/* 목록에서 단어 빼기 (삭제 / 풀에서 사라진 단어) */
+function purge(keys){
+  const order=[];let pos=0;
+  S.order.forEach((k,i)=>{if(keys.has(k))return;order.push(k);if(i<S.pos)pos++;});
+  S.order=order;S.pos=pos;
+  for(const k of keys){delete S.ans[k];delete S.streak[k];if(S.wrongStreak)delete S.wrongStreak[k];}
+  S.hard=(S.hard||[]).filter(k=>!keys.has(k));
+  S.pending=(S.pending||[]).filter(k=>!keys.has(k));
+}
+function endCycle(){
+  const last=S.order[S.order.length-1];
+  const cand=S.order.filter(k=>(S.streak[k]||0)>=STREAK_GOAL&&wordByKey.has(k));
+  S.cycle++;S.order=newOrder(last);S.pos=0;S.ans={};S.pending=cand;
+  saveState();
+}
+function initQuiz(){
+  rebuildMap();
+  S=loadState();
+  if(!S){S={order:newOrder(),pos:0,cycle:1,ans:{},streak:{},okIdx:0,ngIdx:0,pending:[]};}
+  S.pending=S.pending||[];S.okIdx=S.okIdx||0;S.ngIdx=S.ngIdx||0;S.hard=S.hard||[];S.wrongStreak=S.wrongStreak||{};
+  // 저장된 상태를 현재 단어 목록과 맞추기
+  const gone=new Set(S.order.filter(k=>!wordByKey.has(k)));
+  if(gone.size)purge(gone);
+  const have=new Set(S.order);
+  const missing=[...wordByKey.keys()].filter(k=>!have.has(k));
+  for(const k of missing){
+    const at=S.pos+Math.floor(Math.random()*(S.order.length-S.pos+1));
+    S.order.splice(at,0,k);
+  }
+  saveState();
+  refreshView();
+}
+function refreshView(){
+  clearTimeout(advTimer);busy=false;
+  if(S.pos>=S.order.length)endCycle();
+  renderHistory();showWord();
+  if(S.pending.length)openDelPrompt();
+}
+
+/* 뜻 표시: 가장 자주 쓰이는 첫 번째 뜻에 ★ */
+function splitMeanings(ko){
+  const out=[];let cur='',d=0;
+  for(const ch of ko){
+    if('([{'.includes(ch))d++;else if(')]}'.includes(ch))d=Math.max(0,d-1);
+    if((ch===','||ch===';')&&d===0){if(cur.trim())out.push(cur.trim());cur='';}else cur+=ch;
+  }
+  if(cur.trim())out.push(cur.trim());
+  return out.length?out:[ko];
+}
+function renderMeaning(ko){fillMeaning($('meaning'),ko);}
+function fillMeaning(m,ko){
+  const parts=splitMeanings(ko);
+  m.replaceChildren();
+  const mark=()=>{const x=document.createElement('span');x.className='starmark';x.textContent='★';return x;};
+  m.append(mark(),document.createTextNode(' '+parts[0]+' '),mark());
+  if(parts.length>1)m.appendChild(document.createTextNode('  '+parts.slice(1).join(', ')));
+}
+
+function updateProgress(){$('progressCount').textContent=`${S.pos} / ${S.order.length} · ${S.cycle}사이클`;$('hardCount').textContent=S.hard.length;}
+function addHistoryItem(w,known){
+  const li=document.createElement('li');li.className=known?'correct':'wrong';
+  const en=document.createElement('strong');en.textContent=w.en;
+  const ko=document.createElement('div');ko.textContent=w.ko;
+  const st=document.createElement('small');st.textContent=known?'기억나요':'복습';
+  li.append(en,ko,st);$('wordList').appendChild(li);
+}
+function renderHistory(){
+  const frag=document.createDocumentFragment();
+  const tmp=$('wordList');tmp.replaceChildren();
+  for(let i=0;i<S.pos;i++){
+    const k=S.order[i],w=wordByKey.get(k);
+    if(w&&k in S.ans)addHistoryItem(w,S.ans[k]);
+  }
+  tmp.scrollTop=tmp.scrollHeight;
 }
 function showWord(){
- revealed=false;$('wordDisplay').textContent=deck[index].en;
-
- $('meaning').textContent='';$('revealBtn').disabled=false;$('revealBtn').textContent='뜻 확인';
- $('btnO').disabled=true;$('btnX').disabled=true;$('feedback').textContent='';$('feedback').classList.remove('strong-feedback');
- $('progressCount').textContent=`${index} / ${deck.length}`;
+  const w=curWord();revealed=false;
+  $('wordDisplay').textContent=w.en;
+  $('meaning').textContent='';$('revealBtn').disabled=false;$('revealBtn').textContent='뜻 확인';
+  $('btnO').disabled=true;$('btnX').disabled=true;
+  $('feedback').textContent='';$('feedback').classList.remove('strong-feedback');
+  updateProgress();
 }
-function reveal(){if(busy)return;revealed=true;$('meaning').textContent=deck[index].ko;$('revealBtn').disabled=true;$('btnO').disabled=false;$('btnX').disabled=false;}
+function reveal(){
+  if(busy)return;revealed=true;renderMeaning(curWord().ko);
+  $('revealBtn').disabled=true;$('btnO').disabled=false;$('btnX').disabled=false;
+}
 function answer(known){
- if(!revealed||busy)return;busy=true;$('btnO').disabled=true;$('btnX').disabled=true;
- const word=deck[index];results.push({word,known});
- const li=document.createElement('li');li.className=known?'correct':'wrong';
- const en=document.createElement('strong');en.textContent=word.en;
- const ko=document.createElement('div');ko.textContent=word.ko;
- const status=document.createElement('small');status.textContent=known?'기억나요':'복습';
- li.append(en,ko,status);$('wordList').appendChild(li);$('wordList').scrollTop=$('wordList').scrollHeight;
- const messages=['바보!!','멍청이!!!','제대로해!!!'];
- $('feedback').textContent=known?'잘했어요!':messages[Math.floor(Math.random()*messages.length)];
- $('feedback').classList.toggle('strong-feedback',!known);
- $('feedback').style.color=known?'#8fe0c4':'#ff3978';
- $('progressCount').textContent=`${index+1} / ${deck.length}`;
- setTimeout(()=>{index++;busy=false;if(index===deck.length)finish();else showWord();},900);
-}
-function finish(){
- $('testScreen').classList.add('hidden');$('resultScreen').classList.remove('hidden');
- const missed=results.filter(r=>!r.known);
- $('correctCount').textContent=`${results.length-missed.length}개`;$('finalScore').textContent=`${missed.length}개`;
- $('resultGrid').replaceChildren();
- for(const r of missed){const card=document.createElement('div');card.className='result-card wrong';const en=document.createElement('span');en.className='en';en.textContent=r.word.en;const ko=document.createElement('span');ko.className='ko';ko.textContent=r.word.ko;card.append(en,ko);$('resultGrid').appendChild(card);}
- $('reviewBtn').disabled=!missed.length;$('reviewNote').textContent=missed.length?'아래 단어를 다시 익혀 보세요.':'이번 단어를 모두 기억했어요!';
+  if(!revealed||busy)return;busy=true;$('btnO').disabled=true;$('btnX').disabled=true;
+  const k=S.order[S.pos],w=curWord();
+  S.ans[k]=known;
+  S.streak[k]=known?(S.streak[k]||0)+1:0;
+  S.wrongStreak[k]=known?0:(S.wrongStreak[k]||0)+1;
+  if(S.wrongStreak[k]>=2&&!S.hard.includes(k))S.hard.push(k);
+  let msg;
+  if(known){msg=OK_MSG[S.okIdx%OK_MSG.length];S.okIdx++;}
+  else{msg=NG_MSG[S.ngIdx%NG_MSG.length];S.ngIdx++;}
+  S.pos++;saveState();
+  addHistoryItem(w,known);$('wordList').scrollTop=$('wordList').scrollHeight;
+  $('feedback').textContent=msg;
+  $('feedback').classList.toggle('strong-feedback',!known);
+  $('feedback').style.color=known?'#8fe0c4':'#ff3978';
+  updateProgress();
+  advTimer=setTimeout(refreshView,900);
 }
 $('revealBtn').addEventListener('click',reveal);
-$('btnO').addEventListener('click',()=>answer(true));$('btnX').addEventListener('click',()=>answer(false));
-$('retryBtn').addEventListener('click',()=>startSession());
-$('reviewBtn').addEventListener('click',()=>{const pool=results.filter(r=>!r.known).map(r=>r.word);if(pool.length)startSession(pool,true);});
+$('btnO').addEventListener('click',()=>answer(true));
+$('btnX').addEventListener('click',()=>answer(false));
+
+
+/* 틀린 단어장: 연속 두 사이클 모두 못 맞힌 단어 모음 (스크롤 사전) */
+$('openHard').addEventListener('click',()=>{
+  const keys=S.hard.filter(k=>wordByKey.has(k)).reverse(); // 최근에 추가된 단어가 위
+  const list=$('hardList');list.replaceChildren();
+  if(!keys.length){
+    const e=document.createElement('div');e.className='hard-empty';
+    e.textContent='아직 없어요. 같은 단어를 두 사이클 연속으로 못 맞히면 여기에 모여요.';
+    list.appendChild(e);
+  }else{
+    const frag=document.createDocumentFragment();
+    for(const k of keys){
+      const w=wordByKey.get(k);
+      const card=document.createElement('div');card.className='hard-card';
+      const en=document.createElement('div');en.className='en';en.textContent=w.en;
+      const ko=document.createElement('div');ko.className='ko';fillMeaning(ko,w.ko);
+      card.append(en,ko);frag.appendChild(card);
+    }
+    list.appendChild(frag);
+  }
+  $('hardInfo').textContent=`${keys.length}개`;
+  list.scrollTop=0;openModal('hardModal');
+});
+
+/* 4사이클 연속 정답 단어 삭제 창 */
+let pSel=new Set();
+function updatePromptUI(){
+  $('pCount').textContent=`${pSel.size}개 선택`;
+  $('pDelete').disabled=pSel.size===0;
+}
+function openDelPrompt(){
+  pSel=new Set();
+  const frag=document.createDocumentFragment();
+  for(const k of S.pending){
+    const w=wordByKey.get(k);if(!w)continue;
+    const row=document.createElement('label');row.className='del-row';row.dataset.key=k;
+    const cb=document.createElement('input');cb.type='checkbox';
+    const en=document.createElement('span');en.className='en';en.textContent=w.en;
+    const ko=document.createElement('span');ko.className='ko';ko.textContent=w.ko;
+    row.append(cb,en,ko);frag.appendChild(row);
+  }
+  $('pList').replaceChildren(frag);$('pList').scrollTop=0;
+  $('pIntro').textContent=`아래 ${S.pending.length}개 단어를 ${STREAK_GOAL}사이클 연속으로 맞혔어요. 삭제하시겠습니까?`;
+  updatePromptUI();openModal('promptModal');
+}
+$('pList').addEventListener('change',e=>{
+  const row=e.target.closest('.del-row');if(!row)return;
+  if(e.target.checked){pSel.add(row.dataset.key);row.classList.add('sel');}
+  else{pSel.delete(row.dataset.key);row.classList.remove('sel');}
+  updatePromptUI();
+});
+$('pAll').addEventListener('click',()=>{
+  const all=pSel.size!==S.pending.length;
+  pSel=new Set(all?S.pending:[]);
+  for(const row of $('pList').children){row.classList.toggle('sel',all);row.firstChild.checked=all;}
+  updatePromptUI();
+});
+function finishPrompt(deleteSet){
+  // 남긴 단어는 연속 기록을 0으로 되돌려서, 다시 4사이클 뒤에 물어봐요
+  for(const k of S.pending){if(!deleteSet.has(k))S.streak[k]=0;}
+  S.pending=[];
+  if(deleteSet.size)deleteKeys(deleteSet);else saveState();
+  closeModal('promptModal');
+  refreshView();
+}
+$('pKeep').addEventListener('click',()=>finishPrompt(new Set()));
+$('pDelete').addEventListener('click',()=>{
+  const n=pSel.size;if(!n)return;
+  if(getPool().length-n<1){alert('단어를 전부 삭제할 수는 없어요. 최소 1개는 남겨 주세요.');return;}
+  if(!confirm(`${n}개 단어를 삭제할까요?\n삭제하면 퀴즈에서 완전히 사라져요.`))return;
+  finishPrompt(new Set(pSel));
+});
+
 /* ===== 추가 / 삭제 기능 ===== */
 const LS_ADDED='wm_added_v1', LS_DEL='wm_deleted_v1';
 const keyOf=w=>w.en+'|'+w.ko;
@@ -2603,8 +2805,8 @@ function getPool(){return BASE_WORDS.filter(w=>!deletedKeys.has(keyOf(w))).conca
 const openModal=id=>{$(id).classList.remove('hidden');};
 const closeModal=id=>{$(id).classList.add('hidden');};
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));
-document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal').forEach(m=>m.classList.add('hidden'));});
+document.querySelectorAll('.modal:not(.sticky)').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal:not(.sticky)').forEach(m=>m.classList.add('hidden'));});
 
 /* --- 네이버 영어사전 조회 --- */
 const hasKo=s=>/[가-힣]/.test(s);
@@ -2684,11 +2886,10 @@ $('addConfirm').addEventListener('click',()=>{
   const w={en,ko};
   addedWords.push(w);
   const ok=lsSave(LS_ADDED,addedWords);
-  // 진행 중인 연습이면 바로 다음 순서에 끼워 넣기
-  if(!$('testScreen').classList.contains('hidden')&&!busy&&deck.length){
-    deck.splice(index+1,0,w);
-    $('progressCount').textContent=`${index+(revealed?1:0)} / ${deck.length}`;
-  }
+  // 이번 사이클의 바로 다음 순서에 끼워 넣기
+  rebuildMap();
+  S.order.splice(busy?S.pos:S.pos+1,0,keyOf(w));
+  saveState();updateProgress();
   $('addWord').value='';$('addMeaning').value='';
   $('addStatus').textContent=`"${en}" 추가 완료!`+(ok?'':' (저장 공간 문제로 새로고침하면 사라질 수 있어요)');
   $('addWord').focus();
@@ -2726,14 +2927,18 @@ $('delFilter').addEventListener('input',()=>{
 $('delConfirm').addEventListener('click',()=>{
   const n=delSelected.size;if(!n)return;
   if(getPool().length-n<1){alert('단어를 전부 삭제할 수는 없어요. 최소 1개는 남겨 주세요.');return;}
-  if(!confirm(`${n}개 단어를 삭제할까요?\n삭제하면 퀴즈에서 완전히 사라지고, 지금 연습은 새로 시작돼요.`))return;
-  addedWords=addedWords.filter(w=>!delSelected.has(keyOf(w)));
-  for(const w of BASE_WORDS){const k=keyOf(w);if(delSelected.has(k))deletedKeys.add(k);}
-  lsSave(LS_ADDED,addedWords);lsSave(LS_DEL,[...deletedKeys]);
-  closeModal('delModal');startSession();
+  if(!confirm(`${n}개 단어를 삭제할까요?\n삭제하면 퀴즈에서 완전히 사라져요.`))return;
+  deleteKeys(new Set(delSelected));
+  closeModal('delModal');refreshView();
 });
+function deleteKeys(keys){
+  addedWords=addedWords.filter(w=>!keys.has(keyOf(w)));
+  for(const w of BASE_WORDS){const k=keyOf(w);if(keys.has(k))deletedKeys.add(k);}
+  lsSave(LS_ADDED,addedWords);lsSave(LS_DEL,[...deletedKeys]);
+  rebuildMap();purge(keys);saveState();
+}
 
-startSession();
+initQuiz();
 
 </script>
 
